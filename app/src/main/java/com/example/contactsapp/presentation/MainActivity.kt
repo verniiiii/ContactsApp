@@ -21,19 +21,25 @@ import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
         setContent {
             ContactsAppTheme {
+                // Состояние, предоставлены ли все разреешния
                 var contactsPermissionGranted by remember { mutableStateOf(false) }
 
+                // Лаунчер для запроса разрешений
                 val launcher = rememberLauncherForActivityResult(
                     contract = ActivityResultContracts.RequestMultiplePermissions()
                 ) { grants ->
+                    // Если все разрешения предоставлены, обновляем состояние
                     contactsPermissionGranted = grants.all { it.value }
                 }
 
+                // Логика проверки разрешений
                 LaunchedEffect(Unit) {
                     val requiredPermissions = arrayOf(
                         Manifest.permission.READ_CONTACTS,
@@ -41,6 +47,7 @@ class MainActivity : ComponentActivity() {
                         Manifest.permission.CALL_PHONE
                     )
 
+                    // Проверяем, предоставлены ли все необходимые разрешения
                     val granted = requiredPermissions.all {
                         ContextCompat.checkSelfPermission(
                             this@MainActivity,
@@ -48,13 +55,16 @@ class MainActivity : ComponentActivity() {
                         ) == PackageManager.PERMISSION_GRANTED
                     }
 
+                    // Если разрешения уже предоставлены, обновляем состояние
                     if (granted) {
                         contactsPermissionGranted = true
                     } else {
+                        // Запускаем запрос разрешений, если они не предоставлены
                         launcher.launch(requiredPermissions)
                     }
                 }
 
+                // Отображение UI в зависимости от статуса разрешений
                 if (contactsPermissionGranted) {
                     ContactListScreen()
                 } else {

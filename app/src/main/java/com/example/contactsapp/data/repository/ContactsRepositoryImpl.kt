@@ -7,7 +7,9 @@ import com.example.contactsapp.domain.model.Contact
 import com.example.contactsapp.domain.repository.ContactsRepository
 import javax.inject.Inject
 
+
 class ContactsRepositoryImpl @Inject constructor() : ContactsRepository {
+
     override fun getContacts(context: Context): List<Contact> {
         val contactList = mutableListOf<Contact>()
         val contentResolver = context.contentResolver
@@ -17,7 +19,7 @@ class ContactsRepositoryImpl @Inject constructor() : ContactsRepository {
             null,
             null,
             null,
-            "${ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME} ASC"
+            "${ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME} ASC" // сортировка по имени
         )
 
         cursor?.use {

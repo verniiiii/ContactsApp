@@ -1,6 +1,5 @@
 package com.example.contactsapp.data.service
 
-import android.app.Service
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
@@ -8,24 +7,34 @@ import android.content.ServiceConnection
 import android.os.IBinder
 import com.example.contactsapp.service.IDuplicateContactService
 
+/**
+ * Клиент для взаимодействия с AIDL-сервисом DuplicateContactService.
+ * Отвечает за привязку к сервису, отвязку и вызов метода удаления дубликатов.
+ */
 class DuplicateContactServiceClient(
     private val context: Context
 ) {
     private var service: IDuplicateContactService? = null
+
     private var isBound = false
 
-    private val connection = object  : ServiceConnection{
-        override fun onServiceConnected(p0: ComponentName?, p1: IBinder?) {
-            service = IDuplicateContactService.Stub.asInterface(p1)
+    // Объект ServiceConnection для обработки подключения и отключения от сервиса
+    private val connection = object : ServiceConnection {
+        override fun onServiceConnected(name: ComponentName?, binder: IBinder?) {
+            // Получаем ссылку на удалённый интерфейс
+            service = IDuplicateContactService.Stub.asInterface(binder)
             isBound = true
         }
 
-        override fun onServiceDisconnected(p0: ComponentName?) {
+        override fun onServiceDisconnected(name: ComponentName?) {
             service = null
             isBound = false
         }
     }
 
+    /**
+     * Привязка к сервису удаления дубликатов.
+     */
     fun bindService() {
         val intent = Intent(context, DuplicateContactService::class.java).apply {
             action = "com.example.contactsapp.DUPLICATE_CONTACT_SERVICE"
@@ -34,13 +43,20 @@ class DuplicateContactServiceClient(
         context.startService(intent)
     }
 
-    fun unbindService(){
-        if(isBound){
+    /**
+     * Отвязка от сервиса.
+     */
+    fun unbindService() {
+        if (isBound) {
             context.unbindService(connection)
             isBound = false
         }
     }
 
+    /**
+     * Запуск удаления дубликатов контактов.
+     * @param onComplete Колбэк с результатом выполнения [DuplicateContactResult].
+     */
     fun removeDuplicateContacts(onComplete: (DuplicateContactResult) -> Unit) {
         try {
             val result = service?.removeDuplicateContacts()
@@ -55,5 +71,4 @@ class DuplicateContactServiceClient(
             onComplete(DuplicateContactResult.ERROR)
         }
     }
-
 }
