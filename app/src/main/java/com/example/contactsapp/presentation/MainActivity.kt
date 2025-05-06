@@ -8,6 +8,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.material3.Text
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -25,29 +26,39 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             ContactsAppTheme {
-                var permissionGranted by remember{ mutableStateOf(false) } //состояние разрешения
+                var contactsPermissionGranted by remember { mutableStateOf(false) }
 
-                //регистрация запроса разрешения
                 val launcher = rememberLauncherForActivityResult(
-                    contract = ActivityResultContracts.RequestPermission()
-                ) { isGranted: Boolean ->
-                    permissionGranted = isGranted
+                    contract = ActivityResultContracts.RequestMultiplePermissions()
+                ) { grants ->
+                    contactsPermissionGranted = grants.all { it.value }
                 }
 
                 LaunchedEffect(Unit) {
-                    val granted = ContextCompat.checkSelfPermission(
-                        this@MainActivity, Manifest.permission.READ_CONTACTS
-                    ) == PackageManager.PERMISSION_GRANTED
+                    val requiredPermissions = arrayOf(
+                        Manifest.permission.READ_CONTACTS,
+                        Manifest.permission.WRITE_CONTACTS,
+                        Manifest.permission.CALL_PHONE
+                    )
 
-                    if(granted){
-                        permissionGranted = true
-                    }else{
-                        launcher.launch(Manifest.permission.READ_CONTACTS)
+                    val granted = requiredPermissions.all {
+                        ContextCompat.checkSelfPermission(
+                            this@MainActivity,
+                            it
+                        ) == PackageManager.PERMISSION_GRANTED
+                    }
+
+                    if (granted) {
+                        contactsPermissionGranted = true
+                    } else {
+                        launcher.launch(requiredPermissions)
                     }
                 }
 
-                if(permissionGranted){
+                if (contactsPermissionGranted) {
                     ContactListScreen()
+                } else {
+                    Text("Требуются разрешения для работы с контактами")
                 }
             }
         }

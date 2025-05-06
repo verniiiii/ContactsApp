@@ -22,6 +22,13 @@ class ContactsViewModel @Inject constructor(
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> get() = _isLoading
 
+//    private val _isDeletingDuplicates = MutableStateFlow(false)
+//    val isDeletingDuplicates: StateFlow<Boolean> get() = _isDeletingDuplicates
+//
+//    fun setDeletingDuplicates(isDeleting: Boolean){
+//        _isDeletingDuplicates.value = isDeleting
+//    }
+
     fun loadContacts(context: Context) {
         viewModelScope.launch {
             _isLoading.value = true
