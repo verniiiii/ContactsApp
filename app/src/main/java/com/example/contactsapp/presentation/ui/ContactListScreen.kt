@@ -38,7 +38,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.example.contactsapp.data.service.DuplicateContactService
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import com.example.contactsapp.data.service.DuplicateContactResult
 import com.example.contactsapp.data.service.DuplicateContactServiceClient
 import com.example.contactsapp.presentation.viewmodel.ContactsViewModel
 import com.example.contactsapp.util.makePhoneCall
@@ -69,6 +72,22 @@ fun ContactListScreen(
         }
     }
 
+    val lifecycleOwner = LocalLifecycleOwner.current
+
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                viewModel.loadContacts(context) // Загрузить контакты снова
+            }
+        }
+
+        lifecycleOwner.lifecycle.addObserver(observer)
+
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+
     DisposableEffect(Unit) {
         client.bindService()
         onDispose {
@@ -83,20 +102,25 @@ fun ContactListScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Контакты") },
-                actions = {
-                    IconButton(onClick = {
-                        showDeleteDialog = true
-                    }) {
-                        Icon(
-                            imageVector = Icons.Default.Delete,
-                            contentDescription = "Удалить дубликаты"
-                        )
-                    }
-                }
+                title = { Text("Контакты") }
             )
+        },
+        bottomBar = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                androidx.compose.material3.Button(
+                    onClick = { showDeleteDialog = true },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Удалить одинаковые контакты")
+                }
+            }
         }
-    ) { padding ->
+    )  { padding ->
         if (isLoading) {
             Column(
                 modifier = Modifier
@@ -162,14 +186,22 @@ fun ContactListScreen(
                             .padding(8.dp)
                             .clickable {
                                 showDeleteDialog = false
-                                client.removeDuplicateContacts { success ->
-                                    if (success) {
-                                        viewModel.loadContacts(context)
-                                        Toast.makeText(context, "Дубликаты удалены", Toast.LENGTH_SHORT).show()
-                                    } else {
-                                        Toast.makeText(context, "Ошибка при удалении", Toast.LENGTH_SHORT).show()
+                                client.removeDuplicateContacts { result ->
+                                    when (result) {
+                                        DuplicateContactResult.SUCCESS -> {
+                                            viewModel.loadContacts(context)
+                                            Toast.makeText(context, "Дубликаты удалены", Toast.LENGTH_SHORT).show()
+                                        }
+                                        DuplicateContactResult.NO_DUPLICATES_FOUND -> {
+                                            Toast.makeText(context, "Дубликаты не найдены", Toast.LENGTH_SHORT).show()
+                                        }
+                                        DuplicateContactResult.ERROR -> {
+                                            Toast.makeText(context, "Ошибка при удалении", Toast.LENGTH_SHORT).show()
+                                        }
                                     }
                                 }
+
+
                             }
                     )
                 },

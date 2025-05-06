@@ -41,13 +41,19 @@ class DuplicateContactServiceClient(
         }
     }
 
-    fun removeDuplicateContacts(onComplete: (Boolean) -> Unit){
+    fun removeDuplicateContacts(onComplete: (DuplicateContactResult) -> Unit) {
         try {
-            service?.removeDuplicateContacts()
-            onComplete(true)
-        } catch (e: Exception){
+            val result = service?.removeDuplicateContacts()
+            val status = when (result) {
+                0 -> DuplicateContactResult.SUCCESS
+                1 -> DuplicateContactResult.NO_DUPLICATES_FOUND
+                else -> DuplicateContactResult.ERROR
+            }
+            onComplete(status)
+        } catch (e: Exception) {
             e.printStackTrace()
-            onComplete(false)
+            onComplete(DuplicateContactResult.ERROR)
         }
     }
+
 }

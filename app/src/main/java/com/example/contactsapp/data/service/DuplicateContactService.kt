@@ -15,7 +15,6 @@ class DuplicateContactService : Service() {
 
     private val binder = object : IDuplicateContactService.Stub(){
         override fun removeDuplicateContacts(): Int {
-            // Проверка разрешений
             if (ContextCompat.checkSelfPermission(
                     this@DuplicateContactService,
                     Manifest.permission.READ_CONTACTS
@@ -26,13 +25,12 @@ class DuplicateContactService : Service() {
                 ) != PackageManager.PERMISSION_GRANTED
             ) {
                 Log.e("DuplicateContactService", "Не хватает разрешений")
-                return 2 // Код ошибки
+                return 2
             }
 
-
-            try {
+            return try {
                 val resolver = contentResolver
-                val numberToContacts = mutableMapOf<String, MutableList<Pair<Long, String>>>()
+                val map = mutableMapOf<Pair<String, String>, MutableList<Long>>() // (number, name) -> list of contactIds
 
                 val cursor = resolver.query(
                     ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
@@ -46,35 +44,26 @@ class DuplicateContactService : Service() {
                     null
                 )
 
-                if (cursor != null) {
-                    while (cursor.moveToNext()) {
-                        val rawNumber = cursor.getString(0) ?: continue
+                cursor?.use {
+                    while (it.moveToNext()) {
+                        val rawNumber = it.getString(0) ?: continue
                         val number = rawNumber.replace("[^\\d]".toRegex(), "") // оставить только цифры
-                        val contactId = cursor.getString(1)?.toLongOrNull() ?: continue
-                        val name = cursor.getString(2) ?: continue
+                        val contactId = it.getString(1)?.toLongOrNull() ?: continue
+                        val name = it.getString(2)?.trim() ?: continue
 
-                        Log.d("DebugCheck", "Найден номер: $rawNumber → $number, ID: $contactId, Имя: $name")
-
-                        numberToContacts.getOrPut(number) { mutableListOf() }
-                            .add(contactId to name)
-                    }
-                    cursor.close()
-                }
-
-                val contactsToDelete = mutableListOf<Long>()
-
-                for ((number, list) in numberToContacts) {
-                    if (list.size > 1) {
-                        Log.d("DebugCheck", "Дубликаты номера $number: ${list.map { it.first to it.second }}")
-
-                        val sorted = list.sortedByDescending { it.first } // по убыванию ID
-                        contactsToDelete.addAll(sorted.drop(1).map { it.first }) // оставляем только один (новейший)
+                        val key = number to name
+                        map.getOrPut(key) { mutableListOf() }.add(contactId)
                     }
                 }
 
-                Log.d("DuplicateRemoval", "Контактов к удалению: ${contactsToDelete.size}")
+                val contactsToDelete = map.values
+                    .filter { it.size > 1 }
+                    .flatMap { it.sortedDescending().drop(1) } // оставляем один, остальные удалим
 
-                if (contactsToDelete.isEmpty()) return 1
+                if (contactsToDelete.isEmpty()) {
+                    Log.d("DuplicateRemoval", "Дубликаты не найдены")
+                    return 1
+                }
 
                 for (contactId in contactsToDelete) {
                     val rawContactCursor = resolver.query(
@@ -85,9 +74,9 @@ class DuplicateContactService : Service() {
                         null
                     )
 
-                    if (rawContactCursor != null) {
-                        while (rawContactCursor.moveToNext()) {
-                            val rawContactId = rawContactCursor.getLong(0)
+                    rawContactCursor?.use { rc ->
+                        while (rc.moveToNext()) {
+                            val rawContactId = rc.getLong(0)
                             val rows = resolver.delete(
                                 ContactsContract.RawContacts.CONTENT_URI,
                                 "${ContactsContract.RawContacts._ID} = ?",
@@ -95,19 +84,16 @@ class DuplicateContactService : Service() {
                             )
                             Log.d("DuplicateRemoval", "Удалено $rows записей RawContact с ID $rawContactId")
                         }
-                        rawContactCursor.close()
-                    } else {
-                        Log.d("DuplicateRemoval", "RawContactCursor для ID $contactId пуст")
                     }
                 }
 
-                return 0
+                Log.d("DuplicateRemoval", "Удалено ${contactsToDelete.size} дублей")
+                0
             } catch (e: Exception) {
                 Log.e("DuplicateContactService", "Ошибка удаления: ${e.message}", e)
-                return 2
+                2
             }
         }
-
     }
 
     override fun onBind(p0: Intent?): IBinder {

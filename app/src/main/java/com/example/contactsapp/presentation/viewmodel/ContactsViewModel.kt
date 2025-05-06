@@ -3,9 +3,11 @@ package com.example.contactsapp.presentation.viewmodel
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.contactsapp.domain.model.Contact
 import com.example.contactsapp.domain.usecase.GetContactsUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -21,13 +23,6 @@ class ContactsViewModel @Inject constructor(
 
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> get() = _isLoading
-
-//    private val _isDeletingDuplicates = MutableStateFlow(false)
-//    val isDeletingDuplicates: StateFlow<Boolean> get() = _isDeletingDuplicates
-//
-//    fun setDeletingDuplicates(isDeleting: Boolean){
-//        _isDeletingDuplicates.value = isDeleting
-//    }
 
     fun loadContacts(context: Context) {
         viewModelScope.launch {
